@@ -1,0 +1,40 @@
+{% extends 'base.html' %}
+{% block title %}
+  {% if is_edit %}Редактирование поста{% else %}Создание поста{% endif %}
+{% endblock %}
+{% block content %}
+  <div class="container py-5">
+    <div class="row justify-content-center">
+      <div class="col-md-8 p-5">
+        <div class="card-header">
+          {% if is_edit %}
+            Редактирование поста
+          {% else %}
+            Новый пост
+          {% endif %}
+        </div>
+        <div class="card-body">
+          <form method="post">
+            {% csrf_token %}
+            {% for field in form %}
+              <div class="form-group row" aria-required={% if field.field.required %}"true"{% else %}"false"{% endif %}>
+              <label for="{{ field.id_for_label }}" class="col-md-4 col-form-label text-md-right">{{ field.label }}{% if field.field.required %}<span class="required text-danger">*</span>{% endif %}</label>
+                <div class="col-md-6">
+                  {{ field }}
+                  {% if field.help_text %}
+                    <small id="{{ field.id_for_label }}-help" class="form-text text-muted">{{ field.help_text|safe }}</small>
+                  {% endif %}
+                </div>
+              </div>
+            {% endfor %}
+            <div class="d-flex justify-content-end">
+              <button type="submit" class="btn btn-primary">
+                {% if is_edit %}Сохранить{% else %}Добавить{% endif %}   
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+{% endblock %}
