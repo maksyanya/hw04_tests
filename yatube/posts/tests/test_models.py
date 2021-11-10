@@ -39,10 +39,10 @@ class PostModelTest(TestCase):
             'slug': 'Идентификатор',
             'description': 'Описание',
         }
-        for field, expected_value in field_verboses.items():
+        for field, expected in field_verboses.items():
             with self.subTest(field=field):
                 self.assertEqual(
-                    self.group._meta.get_field(field).verbose_name, expected_value)
+                    self.group._meta.get_field(field).verbose_name, expected)
 
     def test_verbose_name_model_post(self):
         """verbose_name в полях модели Post совпадает с ожидаемым."""
@@ -53,7 +53,7 @@ class PostModelTest(TestCase):
             'author': 'Автор',
             'group': 'Группа',
         }
-        for field, expected_value in field_verboses.items():
+        for field, expected in field_verboses.items():
             with self.subTest(field=field):
                 self.assertEqual(
-                    post._meta.get_field(field).verbose_name, expected_value)
+                    post._meta.get_field(field).verbose_name, expected)

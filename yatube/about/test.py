@@ -1,4 +1,4 @@
-from django.test import Client 
+from django.test import Client
 from django.test import TestCase
 
 
@@ -10,7 +10,6 @@ class PostURLTests(TestCase):
     def setUp(self):
         self.guest_client = Client()
         self.authorized_client = Client()
-
 
     # Проверяется общедоступные страницы
     def test_about_author(self):
