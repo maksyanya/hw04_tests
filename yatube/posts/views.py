@@ -12,6 +12,7 @@ from posts.models import User
 
 POSTS_QTY = 10
 
+
 def get_page(request, posts):
     paginator = Paginator(posts, POSTS_QTY)
     page_number = request.GET.get('page')
