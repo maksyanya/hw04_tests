@@ -1,0 +1,2 @@
+TEN_PAGE = 10
+THREE_PAGE = 3

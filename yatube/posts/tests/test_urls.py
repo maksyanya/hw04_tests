@@ -1,6 +1,10 @@
 from django.contrib.auth import get_user_model
-from django.test import Client, TestCase
-from posts.models import Group, Post
+from django.test import Client
+from django.test import TestCase
+from django.urls.base import reverse
+
+from posts.models import Group
+from posts.models import Post
 
 User = get_user_model()
 
@@ -22,71 +26,51 @@ class PostURLTests(TestCase):
 
     def setUp(self):
         self.guest_client = Client()
-        self.user = User.objects.get(username='test_name')
         self.authorized_client = Client()
-        self.authorized_client.force_login(self.user)
+        self.authorized_client.force_login(self.author)
         self.authorized_not_author_client = Client()
         self.authorized_not_author_client.force_login(self.not_author)
 
     # Проверяется общедоступные страницы
-    def test_homepage_index(self):
-        """Страница / доступна любому пользователю."""
-        response = self.guest_client.get('/')
-        self.assertEqual(response.status_code, 200)
-
-    def test_about_author(self):
-        """Страница /about/author/ доступна любому пользователю."""
-        response = self.guest_client.get('/about/author/')
-        self.assertEqual(response.status_code, 200)
-
-    def test_about_tech(self):
-        """Страница /about/tech/ доступна любому пользователю."""
-        response = self.guest_client.get('/about/tech/')
-        self.assertEqual(response.status_code, 200)
-
-    def test_group_slug(self):
-        """Страница /group/<slug>/ доступна любому пользователю."""
-        response = self.guest_client.get('/group/test_slug/')
-        self.assertEqual(response.status_code, 200)
-
-    def test_profile_username(self):
-        """Страница /profile/<username>/ доступна любому пользователю."""
-        response = self.guest_client.get('/profile/test_name/')
-        self.assertEqual(response.status_code, 200)
-
-    def test_posts_post_id(self):
-        """Страница /posts/<post_id>/ доступна любому пользователю."""
-        response = self.guest_client.get(f'/posts/{PostURLTests.post.pk}/')
-        self.assertEqual(response.status_code, 200)
+    def all_url_not_authorized_user(self):
+        '''Проверяется по списку урлы общедоступных страниц.'''
+        url_list = [
+            reverse('posts:index'),
+            reverse('posts:group_posts', args=[self.group.slug]),
+            reverse('posts:profile', args=[self.post.pk]),
+            reverse('posts:post_detail', args=[self.post.pk])
+        ]
+        for url in url_list:
+            response = self.guest_client.get(url)
+            self.assertEqual(response.status_code, 200)
 
     def test_404_unexisting_page(self):
         """Сервер возвращает код 404, если страница не найдена"""
-        response = self.guest_client.get('/unexisting_page/')
+        response = self.guest_client.get('unexisting_page')
         self.assertEqual(response.status_code, 404)
 
     # Проверяется доступность страниц для авторизованного пользователя
-    def test_post_create(self):
-        """Страница /post_create/ доступна авторизованному пользователю."""
-        response = self.authorized_client.get('/create/')
-        self.assertEqual(response.status_code, 200)
-
-    def test_posts_post_id_edit(self):
-        """Страница /posts/<post_id>/edit/ доступна только автору поста."""
-        response = self.authorized_client.get(
-            f'/posts/{PostURLTests.post.pk}/edit/'
-        )
-        self.assertEqual(response.status_code, 200)
+    def all_url_authorized_user(self):
+        '''Проверяется по списку урлы авторизованным пользователям.'''
+        url_list = [
+            reverse('posts:post_create'),
+            reverse('posts:post_edit', args=[self.post.pk]),
+        ]
+        for url in url_list:
+            response = self.authorized_client.get(url)
+            self.assertEqual(response.status_code, 200)
 
     # Проверяется редирект если не автор поста
     def test_post_id_edit_not_author(self):
         """Страница /posts/<post_id>/edit/ перенаправляет пользователя
         на страницу /post_detail/ если не автор поста.
         """
-        response = self.authorized_not_author_client.get(
-            f'/posts/{PostURLTests.post.pk}/edit/',
-            follow=True
-        )
-        self.assertRedirects(response, f'/posts/{PostURLTests.post.pk}/')
+        response = self.authorized_not_author_client.get(reverse(
+            'posts:post_edit',
+            args=[self.post.pk]), follow=True)
+        self.assertRedirects(response, reverse(
+            'posts:post_detail',
+            args=[self.post.pk]))
 
     # Проверяется вызываемые шаблоны для каждого адреса
     def test_urls_uses_correct_template(self):
@@ -97,10 +81,9 @@ class PostURLTests(TestCase):
             'posts/profile.html': '/profile/test_name/',
             'posts/post_detail.html': f'/posts/{PostURLTests.post.pk}/',
             'posts/create_post.html': '/create/',
-            'about/author.html': '/about/author/',
-            'about/tech.html': '/about/tech/'
         }
         for template, url in templates_url_names.items():
             with self.subTest(url=url):
-                response = self.authorized_client.get(url)
-                self.assertTemplateUsed(response, template)
+                self.assertTemplateUsed(
+                    self.authorized_client.get(url),
+                    template)

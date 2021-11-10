@@ -5,14 +5,15 @@ from django.shortcuts import redirect
 from django.shortcuts import render
 from django.core.paginator import Paginator
 
+from posts.forms import PostForm
 from posts.models import Group
 from posts.models import Post
-from .forms import PostForm
 from posts.models import User
 
+POSTS_QTY = 10
 
 def get_page(request, posts):
-    paginator = Paginator(posts, 10)
+    paginator = Paginator(posts, POSTS_QTY)
     page_number = request.GET.get('page')
     return paginator.get_page(page_number)
 
