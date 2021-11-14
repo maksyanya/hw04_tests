@@ -1,2 +1,3 @@
-TEN_PAGE = 10
-THREE_PAGE = 3
+# Тестовые константы для проверки кол-во постов на страницу
+TEN_POSTS_PER_PAGE = 10
+THREE_POSTS_PER_PAGE = 3

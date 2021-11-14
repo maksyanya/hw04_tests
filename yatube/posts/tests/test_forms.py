@@ -1,4 +1,3 @@
-from django.contrib.auth import get_user_model
 from django.test import Client
 from django.test import TestCase
 from django.urls import reverse
@@ -7,9 +6,13 @@ from django import forms
 from posts.forms import PostForm
 from posts.forms import Post
 from posts.models import Group
+from posts.models import User
 
-
-User = get_user_model()
+PROFILE = 'posts:profile'
+POST_DETAIL = 'posts:post_detail'
+POST_CREATE = 'posts:post_create'
+POST_EDIT = 'posts:post_edit'
+AUTH_LOGIN = 'login'
 
 
 class PostFormTests(TestCase):
@@ -17,10 +20,10 @@ class PostFormTests(TestCase):
     def setUpClass(cls):
         super().setUpClass()
         cls.user = User.objects.create(username='test_author')
-        cls.group_old = Group.objects.create(
-            title='test_group_old',
-            slug='test_slug-old',
-            description='test_description_old'
+        cls.group = Group.objects.create(
+            title='test_group',
+            slug='test_slug',
+            description='test_description'
         )
         cls.group_new = Group.objects.create(
             title='test_group_new',
@@ -28,85 +31,98 @@ class PostFormTests(TestCase):
             description='test_description_new'
         )
         cls.post = Post.objects.create(author=cls.user,
-                                       group=cls.group_old,
+                                       group=cls.group,
                                        text='test_text',
                                        )
-        cls.author = User.objects.create_user(
-            username='test_name',
-            first_name='test_first_name',
-            last_name='test_lats_name',
-            email='test@test.ru'
-        )
-
         cls.form = PostForm()
 
     def setUp(self):
         self.guest_client = Client()
         self.authorized_client = Client()
         self.authorized_client.force_login(self.user)
+        self.editor = User.objects.create_user(username='User')
+        self.editor_client = Client()
+        self.editor_client.force_login(self.editor)
+
+        self.url_profile = reverse(
+            PROFILE,
+            kwargs={'username': self.user.username})
+        self.url_post_detail = reverse(
+            POST_DETAIL,
+            args=[self.post.id])
+        self.url_post_create = reverse(
+            POST_CREATE)
+        self.url_post_edit = reverse(
+            POST_EDIT,
+            kwargs={'post_id': self.post.pk})
+
+        self.url_list = [self.url_post_create, self.url_post_edit]
 
     def test_form_create(self):
-        """Проверяется создания нового поста авторизированным пользователем"""
+        '''Проверяется создания нового поста авторизированным пользователем.'''
         post_count = Post.objects.count()
         form_data = {
-            'group': self.group_old.id,
-            'text': 'test_new_text',
+            'group': self.group.id,
+            'text': 'test_text',
         }
-        response = self.authorized_client.post(reverse('posts:post_create'),
+        response = self.authorized_client.post(self.url_post_create,
                                                data=form_data,
                                                follow=True)
-        self.assertRedirects(response, reverse(
-            'posts:profile',
-            kwargs={'username': self.user.username}))
+        self.assertRedirects(response, self.url_profile)
         self.assertEqual(Post.objects.count(), post_count + 1)
-        self.assertTrue(Post.objects.filter(
-            text='test_new_text',
-            group=self.group_old.id).exists())
+        Post.objects.filter(pk=self.post.pk).update(text=form_data['text'])
+        self.post.refresh_from_db()
+        self.assertEqual(self.post.author, self.user)
+        self.assertEqual(self.post.text, form_data['text'])
+
+    def test_form_create_guest_client(self):
+        '''Проверяется создания нового поста гостевым пользователем.'''
+        post_count = Post.objects.count()
+        form_data = {
+            'group': self.group.id,
+            'text': 'test_text',
+        }
+        response = self.client.post(self.url_post_create,
+                                    data=form_data,
+                                    follow=True)
+        login = str(reverse(AUTH_LOGIN)) + '?next='
+        self.assertRedirects(response, login + self.url_post_create)
+        self.assertEqual(Post.objects.count(), post_count)
 
     def test_edit_post(self):
-        """Проверяется редактирования поста через форму на странице."""
-        form_data = {'text': 'test_edit_post', 'group': self.group_new.id}
-        response = self.authorized_client.post(
-            reverse('posts:post_edit', args=[self.post.id]),
-            data=form_data,
-            follow=True
-        )
-        self.assertRedirects(response, reverse(
-            'posts:post_detail', args=[self.post.id]))
-        self.assertTrue(Post.objects.filter(
-            text='test_edit_post',
-            group=self.group_new.id).exists())
-        self.assertFalse(Post.objects.filter(
-            text='test_edit_post',
-            group=self.group_old.id).exists())
+        '''Проверяется редактирование поста через форму на странице.'''
+        form_data_new = {'text': 'edited_text', 'group': self.group_new.id}
+        response = self.authorized_client.post(self.url_post_edit,
+                                               data=form_data_new,
+                                               follow=True)
+        self.assertRedirects(response, self.url_post_detail)
+        Post.objects.filter(pk=self.post.pk).update(
+            group=self.group_new,
+            text=form_data_new['text'])
+        self.post.refresh_from_db()
+        self.assertEqual(self.post.group, self.group_new)
+        self.assertEqual(self.post.text, form_data_new['text'])
 
-    def test_post_create_page_show_correct_context(self):
-        '''Проверяется добавления записи с правильным контекстом.'''
-        response = self.authorized_client.get(
-            reverse('posts:post_create')
-        )
-        form_fields = {
-            'group': forms.fields.ChoiceField,
-            'text': forms.fields.CharField,
+    def test_edit_post_other_user(self):
+        '''Проверяется редактирование поста не автором.'''
+        form_data = {
+            'text': 'Отредактированный текст',
         }
-        for value, expected in form_fields.items():
-            with self.subTest(value=value):
-                form_fields = response.context['form'].fields[value]
-                self.assertIsInstance(form_fields, expected)
+        response = self.editor_client.post(self.url_post_edit,
+                                           data=form_data,
+                                           follow=True)
+        self.assertRedirects(response, self.url_post_detail)
 
-    def test_post_edit_page_show_correct_context(self):
-        '''Проверяется редактирование записи с правильным контекстом.'''
-        response = self.authorized_client.get(
-            reverse(
-                'posts:post_edit',
-                kwargs={'post_id': self.post.pk}
-            )
-        )
-        form_fields = {
-            'group': forms.fields.ChoiceField,
-            'text': forms.fields.CharField,
-        }
-        for value, expected in form_fields.items():
-            with self.subTest(value=value):
-                form_fields = response.context['form'].fields[value]
-                self.assertIsInstance(form_fields, expected)
+    def test_post_create_and_edit_page_show_correct_context(self):
+        '''Проверяется добавление/редактирование записи
+        с правильным контекстом.'''
+        for url in self.url_list:
+            response = self.authorized_client.get(url)
+            form_fields = {
+                'group': forms.fields.ChoiceField,
+                'text': forms.fields.CharField,
+            }
+            for value, expected in form_fields.items():
+                with self.subTest(value=value):
+                    form_fields = response.context['form'].fields[value]
+                    self.assertIsInstance(form_fields, expected)

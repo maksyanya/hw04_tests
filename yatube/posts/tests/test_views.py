@@ -1,14 +1,12 @@
-from django.contrib.auth import get_user_model
 from django.test import Client
 from django.test import TestCase
 from django.urls import reverse
 
 from posts.models import Group
 from posts.models import Post
-from posts.settings import TEN_PAGE
-from posts.settings import THREE_PAGE
-
-User = get_user_model()
+from posts.models import User
+from posts.settings import TEN_POSTS_PER_PAGE
+from posts.settings import THREE_POSTS_PER_PAGE
 
 
 class PostPagesTests(TestCase):
@@ -24,6 +22,12 @@ class PostPagesTests(TestCase):
             group=cls.group,
             text='test_text',
         )
+        cls.url_list = [
+            reverse('posts:index'),
+            reverse('posts:group_posts', args=[cls.group.slug]),
+            reverse('posts:profile', args=[cls.author.username]),
+            reverse('posts:post_detail', kwargs={'post_id': cls.post.pk})
+        ]
 
     def setUp(self):
         self.guest_client = Client()
@@ -33,27 +37,15 @@ class PostPagesTests(TestCase):
     # Проверяется, что в шаблон передан правильный контекст
     def test_templates_list_show_correct_context(self):
         '''Проверяется список шаблонов на соответствие контекста.'''
-        url_list = [
-            reverse('posts:index'),
-            reverse('posts:group_posts', args=[self.group.slug]),
-            reverse('posts:profile', args=[self.author.username]),
-        ]
-        for url in url_list:
+        for url in self.url_list:
             response = self.authorized_client.get(url)
-            post = response.context['page_obj'][0]
-            self.assertEqual(post.group, self.group)
-            self.assertEqual(post.author, self.author)
-            self.assertEqual(post.text, self.post.text)
-
-    def test_post_detail_page_show_correct_context(self):
-        '''Проверяется содержимое детализации поста.'''
-        response = self.authorized_client.get(
-            reverse('posts:post_detail', kwargs={'post_id': self.post.pk})
-        )
-        post_author = response.context.get('post').author
-        post_text = response.context.get('post').text
-        self.assertEqual(post_author, self.author)
-        self.assertEqual(post_text, self.post.text)
+            if 'page_obj' in response.context:
+                post = response.context['page_obj'][0]
+            else:
+                post = response.context['post']
+                self.assertEqual(post.group, self.post.group)
+                self.assertEqual(post.author, self.post.author)
+                self.assertEqual(post.text, self.post.text)
 
 
 class PaginatorViewsTest(TestCase):
@@ -64,33 +56,36 @@ class PaginatorViewsTest(TestCase):
         cls.group = Group.objects.create(title='test_title',
                                          slug='test_slug',
                                          description='test_discription')
-        cls.templates = {
-            1: reverse('posts:index'),
-            2: reverse('posts:group_posts', args=[cls.group.slug]),
-            3: reverse('posts:profile', args=[cls.author.username])
-        }
+        cls.posts = (Post(author=cls.author,
+                          group=cls.group,
+                          text='test_post',
+                          ) for i in range(
+                              TEN_POSTS_PER_PAGE + THREE_POSTS_PER_PAGE))
+        cls.post = Post.objects.bulk_create(cls.posts)
 
-        for i in range(13):
-            cls.post = Post.objects.create(
-                author=cls.author,
-                group=cls.group,
-                text=f'test_post{i}',
-            )
+        cls.url_list = [
+            reverse('posts:index'),
+            reverse('posts:group_posts', args=[cls.group.slug]),
+            reverse('posts:profile', args=[cls.author.username])
+        ]
 
     def setUp(self):
         self.guest_client = Client()
 
-    # Выполняется проверка количество постов для страниц
-    def test_first_page_has_ten_posts(self):
-        """Проверяется 10 постов на первой странице"""
-        for i in self.templates.keys():
-            with self.subTest(i=i):
-                response = self.client.get(self.templates[i])
-                self.assertEqual(len(response.context['page_obj']), TEN_PAGE)
+    def test_first_page_containse_ten_records(self):
+        '''Проверяется отображение 10 постов на первой странице.'''
+        for url in self.url_list:
+            response = self.guest_client.get(url)
+            self.assertEqual(len(
+                response.context['page_obj']),
+                TEN_POSTS_PER_PAGE
+            )
 
-    def test_second_page_has_three_posts(self):
-        """Проверяется 3 поста на второй странице"""
-        for i in self.templates.keys():
-            with self.subTest(i=i):
-                response = self.client.get(self.templates[i] + '?page=2')
-                self.assertEqual(len(response.context['page_obj']), THREE_PAGE)
+    def test_second_page_containse_tree_records(self):
+        '''Проверяется отображения 3 поста на первой странице.'''
+        for url in self.url_list:
+            response = self.guest_client.get(url + '?page=2')
+            self.assertEqual(len(
+                response.context['page_obj']),
+                THREE_POSTS_PER_PAGE
+            )

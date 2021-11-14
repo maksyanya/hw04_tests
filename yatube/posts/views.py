@@ -10,11 +10,11 @@ from posts.models import Group
 from posts.models import Post
 from posts.models import User
 
-POSTS_QTY = 10
+POSTS_PER_PAGE = 10
 
 
 def get_page(request, posts):
-    paginator = Paginator(posts, POSTS_QTY)
+    paginator = Paginator(posts, POSTS_PER_PAGE)
     page_number = request.GET.get('page')
     return paginator.get_page(page_number)
 
@@ -63,6 +63,7 @@ def post_create(request):
     return redirect('posts:profile', username=post.author.username)
 
 
+@login_required
 def post_edit(request, post_id):
     post = get_object_or_404(Post, id=post_id)
     if request.user != post.author:
