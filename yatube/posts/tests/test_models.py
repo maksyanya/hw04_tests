@@ -4,32 +4,35 @@ from posts.models import Group
 from posts.models import Post
 from posts.models import User
 
+USERNAME = 'test_author'
+TITLE = 'test_group'
+SLUG = 'test_slug'
+DESCRIPTION = 'test_text'
+
 
 class PostModelTest(TestCase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
-        cls.user = User.objects.create_user(username='test_author')
+        cls.user = User.objects.create_user(username=USERNAME)
         cls.group = Group.objects.create(
-            title='Тестовая группа',
-            slug='Тестовый слаг',
-            description='Тестовое описание',
+            title=TITLE,
+            slug=SLUG,
+            description=DESCRIPTION,
         )
         cls.post = Post.objects.create(
             author=cls.user,
             group=cls.group,
-            text='test_text'
+            text='Ж' * 100
         )
 
     def test_model_post_have_correct_str(self):
         '''Проверяется, что у модели Post корректно работает __str__.'''
-        expected_object_name = self.post.text[:15]
-        self.assertEqual(expected_object_name, str(self.post))
+        self.assertEqual(self.post.text[:15], str(self.post))
 
     def test_model_group_have_correct_str(self):
         '''Проверяется, что у модели Group корректно работает __str__.'''
-        expected_object_name = self.group.title
-        self.assertEqual(expected_object_name, str(self.group))
+        self.assertEqual(self.group.title, str(self.group))
 
     def test_verbose_name_model_group(self):
         '''verbose_name в полях модели Group совпадает с ожидаемым.'''

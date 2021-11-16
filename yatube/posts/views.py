@@ -9,8 +9,7 @@ from posts.forms import PostForm
 from posts.models import Group
 from posts.models import Post
 from posts.models import User
-
-POSTS_PER_PAGE = 10
+from posts.settings import POSTS_PER_PAGE
 
 
 def get_page(request, posts):
