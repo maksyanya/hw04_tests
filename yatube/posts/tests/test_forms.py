@@ -54,7 +54,7 @@ class PostFormTests(TestCase):
         post_count = Post.objects.count()
         form_data = {
             'group': self.group.id,
-            'text': 'test_text',
+            'text': 'test_text'
         }
         response = self.authorized_client.post(POST_CREATE_URL,
                                                data=form_data,
