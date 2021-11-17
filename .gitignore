@@ -110,6 +110,10 @@ ENV/
 env.bak/
 venv.bak/
 
+# Исключена статика (картинки и ccs) и media
+static/
+media/
+
 # Spyder project settings
 .spyderproject
 .spyproject
