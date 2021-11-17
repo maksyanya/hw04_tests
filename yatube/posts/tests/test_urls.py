@@ -37,45 +37,46 @@ class PostURLTests(TestCase):
         cls.POST_EDIT_URL = reverse('posts:post_edit', args=[cls.post.id])
 
     def setUp(self):
-        self.guest_client = Client()
-        self.authorized_client = Client()
-        self.authorized_client.force_login(self.author)
-        self.authorized_not_author_client = Client()
-        self.authorized_not_author_client.force_login(self.not_author)
+        self.guest = Client()
+        self.author_ = Client()
+        self.author_.force_login(self.author)
+        self.another = Client()
+        self.another.force_login(self.not_author)
 
     # Проверяется все страницы авторизованных/неавторизованных пользователей
     def test_all_url_all_user(self):
         '''Проверяется по списку урлы всех страниц.'''
         cases = [
-            [INDEX_URL, self.guest_client, 200],
-            [GROUP_POSTS_URL, self.guest_client, 200],
-            [PROFILE_URL, self.guest_client, 200],
-            [self.POST_DETAIL_URL, self.guest_client, 200],
-            [POST_CREATE_URL, self.authorized_not_author_client, 200],
-            [self.POST_EDIT_URL, self.authorized_client, 200],
-            [UNEXIST_PAGE, self.guest_client, 404],
-            [POST_CREATE_URL, self.guest_client, 302],
-            [self.POST_EDIT_URL, self.authorized_not_author_client, 302]
+            [INDEX_URL, self.guest, 200],
+            [GROUP_POSTS_URL, self.guest, 200],
+            [PROFILE_URL, self.guest, 200],
+            [self.POST_DETAIL_URL, self.guest, 200],
+            [POST_CREATE_URL, self.another, 200],
+            [self.POST_EDIT_URL, self.author_, 200],
+            [UNEXIST_PAGE, self.guest, 404],
+            [POST_CREATE_URL, self.guest, 302],
+            [self.POST_EDIT_URL, self.guest, 302],
+            [self.POST_EDIT_URL, self.another, 302]
         ]
         for url, client, code in cases:
-            with self.subTest(url=url):
+            with self.subTest(url=url, client=client, code=code):
                 self.assertEqual(client.get(url).status_code, code)
 
     def test_redirect_urls_correct(self):
         '''Проверяется редирект страниц создания/редактирования поста.'''
         cases = [
             [self.POST_EDIT_URL,
-             self.authorized_not_author_client,
+             self.another,
              self.POST_DETAIL_URL],
             [POST_CREATE_URL,
-             self.guest_client,
+             self.guest,
              LOGIN + '?next=' + POST_CREATE_URL],
             [self.POST_EDIT_URL,
-             self.guest_client,
+             self.guest,
              LOGIN + '?next=' + self.POST_EDIT_URL]
         ]
         for url, client, finel_url in cases:
-            with self.subTest(url=url):
+            with self.subTest(url=url, client=client, finel_url=finel_url):
                 self.assertRedirects(client.get(url, follow=True), finel_url)
 
     # Проверяется вызываемые шаблоны для каждого адреса
@@ -92,5 +93,5 @@ class PostURLTests(TestCase):
         for url, template in templates_url_names.items():
             with self.subTest(url=url):
                 self.assertTemplateUsed(
-                    self.authorized_client.get(url),
+                    self.author_.get(url),
                     template)

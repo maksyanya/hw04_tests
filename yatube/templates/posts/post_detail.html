@@ -11,8 +11,9 @@
         {% if post.group %} 
           <li class="list-group-item">
             Сообщество: {{post.group}}
+            <br/>
             <a href="{% url 'posts:group_posts'  post.group.slug %}">
-              все записи сообщества {{ post.group }}
+              все записи сообщества
             </a>
           </li>
         {% endif %}
@@ -20,11 +21,16 @@
           Автор: {{ post.author.get_full_name }}
         </li>
         <li class="list-group-item d-flex justify-content-between align-items-center">
-          Всего постов автора:<span >{{ post.author.posts.count }}</span>
+          Всего постов автора:<span>{{ post.author.posts.count }}</span>
         </li>
         <li class="list-group-item">
           <a href="{% url 'posts:profile' post.author.username %}">
             все посты автора
+          </a>
+        </li>
+        <li class="list-group-item">
+          <a href="{% url 'posts:post_edit' post.id%}">
+            редакторовать пост
           </a>
         </li>
       </ul>
