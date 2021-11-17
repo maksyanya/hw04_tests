@@ -52,11 +52,7 @@ class PostFormTests(TestCase):
     def test_form_create(self):
         '''Проверяется создания нового поста авторизированным пользователем.'''
         post_count = Post.objects.count()
-        form_data = {
-            'text': 'test_text',
-            'group': self.group.id,
-
-        }
+        form_data = {'text': 'test_text', 'group': self.group.id}
         response = self.authorized_client.post(POST_CREATE_URL,
                                                data=form_data,
                                                follow=True)
@@ -69,11 +65,7 @@ class PostFormTests(TestCase):
 
     def test_edit_post(self):
         '''Проверяется редактирование поста через форму на странице.'''
-        form_data_new = {
-            'text': 'edited_text',
-            'group': self.group_new.id,
-        }
-        print(form_data_new)
+        form_data_new = {'text': 'edited_text', 'group': self.group_new.id}
         response = self.authorized_client.post(self.POST_EDIT_URL,
                                                data=form_data_new,
                                                follow=True)
