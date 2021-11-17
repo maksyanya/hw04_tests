@@ -54,7 +54,7 @@ class PostFormTests(TestCase):
         post_count = Post.objects.count()
         form_data = {
             'group': self.group.id,
-            'text': 'test_text'
+            'text': 'test_text',
         }
         response = self.authorized_client.post(POST_CREATE_URL,
                                                data=form_data,
@@ -63,12 +63,15 @@ class PostFormTests(TestCase):
         self.assertEqual(Post.objects.count(), post_count + 1)
         self.post.refresh_from_db()
         self.assertEqual(self.group.id, form_data['group'])
-        self.assertEqual(self.post.author, self.user)
         self.assertEqual(self.post.text, form_data['text'])
 
     def test_edit_post(self):
         '''Проверяется редактирование поста через форму на странице.'''
-        form_data_new = {'text': 'edited_text', 'group': self.group_new.id}
+        form_data_new = {
+            'text': 'edited_text',
+            'group': self.group_new.id,
+        }
+        print(form_data_new)
         response = self.authorized_client.post(self.POST_EDIT_URL,
                                                data=form_data_new,
                                                follow=True)
@@ -76,7 +79,6 @@ class PostFormTests(TestCase):
         self.post.refresh_from_db()
         self.assertEqual(self.group_new.id, form_data_new['group'])
         self.assertEqual(self.post.text, form_data_new['text'])
-        self.assertEqual(self.post.author, self.user)
 
     def test_post_create_and_edit_page_show_correct_context(self):
         '''Проверяется добавление/редактирование записи
