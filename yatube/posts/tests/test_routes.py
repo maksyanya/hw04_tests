@@ -1,51 +1,37 @@
 from django.test import TestCase
 from django.urls import reverse
 
-from posts.forms import Post
-from posts.models import Group
-from posts.models import User
-
 USERNAME = 'test_author'
 SLUG = 'test_slug'
-TEXT = 'test_text'
+ID = 1
 
 
 class PostRoutesTests(TestCase):
-    @classmethod
-    def setUpClass(cls):
-        super().setUpClass()
-        cls.user = User.objects.create(username=USERNAME)
-        cls.group = Group.objects.create(slug=SLUG)
-        cls.post = Post.objects.create(author=cls.user,
-                                       group=cls.group,
-                                       text=TEXT,
-                                       )
-
     def test_urls_correct_use(self):
         '''Проверяется маршруты явных и рассчётных урлов.'''
         self.url_list = [
             [
-                '/', reverse('posts:index')
+                '/', 'index', []
             ],
             [
-                '/create/', reverse('posts:post_create')
+                '/create/', 'post_create', []
             ],
             [
-                f'/group/{self.group.slug}/',
-                reverse('posts:group_posts', args=[self.group.slug])
+                f'/group/{SLUG}/',
+                'group_posts', [SLUG]
             ],
             [
-                f'/posts/{self.post.id}/',
-                reverse('posts:post_detail', args=[self.post.id])
+                f'/posts/{ID}/',
+                'post_detail', [ID]
             ],
             [
-                f'/profile/{self.user.username}/',
-                reverse('posts:profile', args=[self.user.username])
+                f'/profile/{USERNAME}/',
+                'profile', [USERNAME]
             ],
             [
-                f'/posts/{self.post.id}/edit/',
-                reverse('posts:post_edit', args=[self.post.id])
+                f'/posts/{ID}/edit/',
+                'post_edit', [ID]
             ]
         ]
-        for url, name in self.url_list:
-            self.assertEqual(url, name)
+        for url, name, parametr in self.url_list:
+            self.assertEqual(url, reverse(f'posts:{name}', args=parametr))

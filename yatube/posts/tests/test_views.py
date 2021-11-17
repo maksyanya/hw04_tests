@@ -1,6 +1,6 @@
-import random
 from django.test import Client
 from django.test import TestCase
+from django.urls import reverse
 
 from posts.models import Group
 from posts.models import Post
@@ -12,17 +12,15 @@ USERNAME = 'test_author'
 TITLE = 'test_title'
 SLUG = 'test_slug'
 DESCRIPTION = 'test_discription'
-POST_ID = '1'
 TEXT = 'test_text'
 TITLE_ANOTHER = 'another_title'
 SLUG_ANOTHER = 'another_slug'
 DESCRIPTION_OTHER = 'other_description'
 
-INDEX = '/'
-GROUP_POSTS = f'/group/{SLUG}/'
-PROFILE = f'/profile/{USERNAME}/'
-POST_DETAIL = f'/posts/{POST_ID}/'
-ANOTHER_GROUP = f'/group/{SLUG_ANOTHER}/'
+INDEX_URL = reverse('posts:index')
+GROUP_POSTS_URL = reverse('posts:group_posts', kwargs={'slug': SLUG})
+PROFILE_URL = reverse('posts:profile', kwargs={'username': USERNAME})
+ANOTHER_GROUP = reverse('posts:group_posts', kwargs={'slug': SLUG_ANOTHER})
 
 
 class PostPagesTests(TestCase):
@@ -41,12 +39,7 @@ class PostPagesTests(TestCase):
             group=cls.group,
             text=TEXT,
         )
-        cls.url_list = [
-            INDEX,
-            GROUP_POSTS,
-            PROFILE,
-            POST_DETAIL
-        ]
+        cls.POST_DETAIL_URL = reverse('posts:post_detail', args=[cls.post.id])
 
     def setUp(self):
         self.guest_client = Client()
@@ -55,14 +48,19 @@ class PostPagesTests(TestCase):
 
     def test_show_correct_context(self):
         '''Проверяется контекст шаблонов на соответствие.'''
-        for url in self.url_list:
+        url_list = [
+            INDEX_URL,
+            GROUP_POSTS_URL,
+            PROFILE_URL,
+            self.POST_DETAIL_URL
+        ]
+        for url in url_list:
             response = self.authorized_client.get(url)
-            if 'page_obj' in response.context and len(
-                response.context['page_obj']
-            ) == 1:
+            if 'page_obj' in response.context:
                 post = response.context['page_obj'][0]
             else:
                 post = response.context['post']
+            self.assertEqual(Post.objects.count(), 1)
             self.assertEqual(post.group, self.post.group)
             self.assertEqual(post.author, self.post.author)
             self.assertEqual(post.text, self.post.text)
@@ -70,18 +68,20 @@ class PostPagesTests(TestCase):
     def test_post_not_in_another_group(self):
         '''Проверяется, что пост не отображается в другой группе'''
         response_group = self.authorized_client.get(ANOTHER_GROUP)
-        self.assertNotIn(self.post, response_group.context.get('page_obj'))
+        self.assertNotIn(self.post, response_group.context['page_obj'])
 
     def test_author_in_profile_page(self):
         '''Проверяется, что автор на станице профиля.'''
-        response_author = self.authorized_client.get(PROFILE)
-        self.assertEqual(self.author, response_author.context.get('author'))
+        response_author = self.authorized_client.get(PROFILE_URL)
+        self.assertEqual(self.author, response_author.context['author'])
 
     def test_group_in_group_posts_page_(self):
         '''Проверяется, что "группа" на странице групп-ленты..'''
-        response_group = self.authorized_client.get(GROUP_POSTS)
-        group_test = response_group.context.get('group')
-        self.assertEqual(group_test, self.group)
+        response = self.authorized_client.get(GROUP_POSTS_URL)
+        group = response.context['group']
+        self.assertEqual(group.title, self.group.title)
+        self.assertEqual(group.description, self.group.description)
+        self.assertEqual(group.slug, self.group.slug)
 
 
 class PaginatorViewsTest(TestCase):
@@ -92,18 +92,15 @@ class PaginatorViewsTest(TestCase):
         cls.group = Group.objects.create(title='test_title',
                                          slug='test_slug',
                                          description='test_discription')
-        cls.add_pages = random.randint(1, POSTS_PER_PAGE - 1)
-        cls.posts = (Post(author=cls.author,
-                          group=cls.group,
-                          text='test_post',
-                          ) for i in range(
-                              POSTS_PER_PAGE + cls.add_pages))
-        cls.post = Post.objects.bulk_create(cls.posts)
-
+        cls.posts = Post.objects.bulk_create(Post(author=cls.author,
+                                                  group=cls.group,
+                                                  text='test_post',
+                                                  ) for i in range(
+                                                      POSTS_PER_PAGE))
         cls.url_list = [
-            INDEX,
-            GROUP_POSTS,
-            PROFILE
+            INDEX_URL,
+            GROUP_POSTS_URL,
+            PROFILE_URL
         ]
 
     def setUp(self):
@@ -124,5 +121,5 @@ class PaginatorViewsTest(TestCase):
             response = self.guest_client.get(url + '?page=2')
             self.assertEqual(len(
                 response.context['page_obj']),
-                self.add_pages
+                POSTS_PER_PAGE
             )

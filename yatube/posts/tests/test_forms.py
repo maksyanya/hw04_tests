@@ -1,14 +1,13 @@
 from django.test import Client
 from django.test import TestCase
+from django.urls import reverse
 
 from django import forms
-from posts.forms import PostForm
-from posts.forms import Post
 from posts.models import Group
+from posts.models import Post
 from posts.models import User
 
 USERNAME = 'test_author'
-POST_ID = '1'
 TITLE = 'test_group'
 SLUG = 'test_slug'
 DESCRIPTION = 'test_description'
@@ -16,11 +15,8 @@ TITLE_NEW = 'test_group_new'
 SLUG_NEW = 'test_slug_new'
 DESCRIPTION_NEW = 'test_description_new'
 
-PROFILE = f'/profile/{USERNAME}/'
-POST_DETAIL = f'/posts/{POST_ID}/'
-POST_CREATE = '/create/'
-POST_EDIT = f'/posts/{POST_ID}/edit/'
-LOGIN = '/auth/login/?next='
+PROFILE_URL = reverse('posts:profile', kwargs={'username': USERNAME})
+POST_CREATE_URL = reverse('posts:post_create')
 
 
 class PostFormTests(TestCase):
@@ -42,7 +38,8 @@ class PostFormTests(TestCase):
                                        group=cls.group,
                                        text='test_text',
                                        )
-        cls.form = PostForm()
+        cls.POST_DETAIL_URL = reverse('posts:post_detail', args=[cls.post.id])
+        cls.POST_EDIT_URL = reverse('posts:post_edit', args=[cls.post.id])
 
     def setUp(self):
         self.guest_client = Client()
@@ -51,7 +48,6 @@ class PostFormTests(TestCase):
         self.editor = User.objects.create_user(username='User')
         self.editor_client = Client()
         self.editor_client.force_login(self.editor)
-        self.url_list = [POST_CREATE, POST_EDIT]
 
     def test_form_create(self):
         '''Проверяется создания нового поста авторизированным пользователем.'''
@@ -60,37 +56,32 @@ class PostFormTests(TestCase):
             'group': self.group.id,
             'text': 'test_text',
         }
-        response = self.authorized_client.post(POST_CREATE,
+        response = self.authorized_client.post(POST_CREATE_URL,
                                                data=form_data,
                                                follow=True)
-        self.assertRedirects(response, PROFILE)
+        self.assertRedirects(response, PROFILE_URL)
         self.assertEqual(Post.objects.count(), post_count + 1)
-
-    def test_form_create_guest_client(self):
-        '''Проверяется создания нового поста гостевым пользователем.'''
-        form_data = {
-            'group': self.group.id,
-            'text': 'test_text',
-        }
-        response = self.client.post(POST_CREATE,
-                                    data=form_data,
-                                    follow=True)
-        self.assertRedirects(response, LOGIN + POST_CREATE)
+        self.post.refresh_from_db()
+        self.assertEqual(self.group.id, form_data['group'])
+        self.assertEqual(self.post.author, self.user)
+        self.assertEqual(self.post.text, form_data['text'])
 
     def test_edit_post(self):
         '''Проверяется редактирование поста через форму на странице.'''
         form_data_new = {'text': 'edited_text', 'group': self.group_new.id}
-        response = self.authorized_client.post(POST_EDIT,
+        response = self.authorized_client.post(self.POST_EDIT_URL,
                                                data=form_data_new,
                                                follow=True)
-        self.assertRedirects(response, POST_DETAIL)
+        self.assertRedirects(response, self.POST_DETAIL_URL)
         self.post.refresh_from_db()
-        self.assertEqual(self.post.group, self.group_new)
+        self.assertEqual(self.group_new.id, form_data_new['group'])
         self.assertEqual(self.post.text, form_data_new['text'])
+        self.assertEqual(self.post.author, self.user)
 
     def test_post_create_and_edit_page_show_correct_context(self):
         '''Проверяется добавление/редактирование записи
         с правильным контекстом.'''
+        self.url_list = [POST_CREATE_URL, self.POST_EDIT_URL]
         for url in self.url_list:
             response = self.authorized_client.get(url)
             form_fields = {
