@@ -60,9 +60,10 @@ class PostPagesTests(TestCase):
                 post = response.context['page_obj'][0]
             else:
                 post = response.context['post']
-            self.assertNotEqual(len('page_obj'), 1)
+            self.assertEqual(len(['page_obj']), 1)
             self.assertEqual(post.group, self.post.group)
             self.assertEqual(post.author, self.post.author)
+            self.assertEqual(post.text, self.post.text)
             self.assertEqual(post.id, self.post.id)
 
     def test_post_not_in_another_group(self):
@@ -81,6 +82,7 @@ class PostPagesTests(TestCase):
         group = response.context['group']
         self.assertEqual(group.title, self.group.title)
         self.assertEqual(group.description, self.group.description)
+        self.assertEqual(group.slug, self.group.slug)
         self.assertEqual(group.id, self.group.id)
 
 
